@@ -26,17 +26,13 @@ export class OffChainStorageTestContract extends SmartContract {
 
   _serverPublicKey: PublicKey;
 
-  constructor(zkAppAddress: PublicKey, serverPublicKey: PublicKey) {
-    super(zkAppAddress)
-    this._serverPublicKey = serverPublicKey;
-  }
-
-  deploy(args: DeployArgs) {
+  deploy(args: DeployArgs, serverPublicKey: PublicKey) {
     super.deploy(args);
     this.setPermissions({
       ...Permissions.default(),
       editState: Permissions.proofOrSignature(),
     });
+    this._serverPublicKey = serverPublicKey;
 
     const tree = new MerkleTree(height);
     const root = tree.getRoot();
@@ -46,7 +42,6 @@ export class OffChainStorageTestContract extends SmartContract {
     this.rootNumber.set(rootNumber);
 
     this.serverPublicKey.set(this._serverPublicKey);
-
   }
 
   @method update(

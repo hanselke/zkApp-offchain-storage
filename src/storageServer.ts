@@ -126,7 +126,7 @@ app.post('/data', (req, res) => {
   const height: number = req.body.height;
   const items: Array<[string, string[]]> = req.body.items;
   const zkAppAddress58: string = req.body.zkAppAddress;
-
+  console.log('post data called', height, zkAppAddress58);
   const fieldItems: Array<[bigint, Field[]]> = items.map(([idx, strs]) => [
     BigInt(idx),
     strs.map((s) => Field.fromJSON(s)),
@@ -145,18 +145,19 @@ app.post('/data', (req, res) => {
   }
 
   if (height > maxHeight) {
-    res
-      .status(400)
-      .send(
+    res.status(400).send({
+      error:
         'height is too large. A max height of ' +
-          maxHeight +
-          ' is supported for this implementation'
-      );
+        maxHeight +
+        ' is supported for this implementation',
+    });
     return;
   }
 
   if (items.length > 2 ** (height - 1)) {
-    res.status(400).send('too many items for height');
+    res.status(400).send({
+      error: 'too many items for height',
+    });
     return;
   }
 
@@ -169,7 +170,7 @@ app.post('/data', (req, res) => {
   }
 
   if (database[zkAppAddress58].height != height) {
-    res.status(400).send('wrong height');
+    res.status(400).send({ error: 'wrong height' });
     return;
   }
 
@@ -181,7 +182,7 @@ app.post('/data', (req, res) => {
     rootNumber: Number(newRootNumber.toBigInt()),
     items,
   };
-
+  console.log('post data gona store data');
   fs.writeFileSync(
     saveFile,
     JSON.stringify({
@@ -204,6 +205,7 @@ app.post('/data', (req, res) => {
       newRootSignature.toFields().map((f) => f.toString()),
     ],
   });
+  return;
 });
 
 // ==============================================================================
@@ -211,14 +213,30 @@ app.post('/data', (req, res) => {
 app.get('/data', (req, res) => {
   const zkAppAddress58 = req.query.zkAppAddress;
   const root = req.query.root;
-
+  console.log('GET /data', root, zkAppAddress58);
   if (typeof zkAppAddress58 == 'string' && typeof root == 'string') {
     console.log('getting', zkAppAddress58, root);
-    res.json({
-      items: database[zkAppAddress58].root2data[root].items,
-    });
+
+    if (database[zkAppAddress58]) {
+      if (database[zkAppAddress58].root2data[root]) {
+        res.json({
+          items: database[zkAppAddress58].root2data[root].items,
+        });
+        return;
+      } else {
+        // root is wrong
+        console.log('database[zkAppAddress58]', database[zkAppAddress58]);
+        res.send(400).send({ error: 'you are using the wrong root' });
+        return;
+      }
+    } else {
+      // we cant return emptyFilled here because we dont have tree height
+      res.status(400).send({ error: 'no data for address' });
+      return;
+    }
   } else {
-    res.status(400).send('bad query parameters');
+    res.status(400).send({ error: 'bad query params' });
+    return;
   }
 });
 
